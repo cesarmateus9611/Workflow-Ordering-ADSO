@@ -1,0 +1,801 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Workflow Sequencer – SENA</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;600;800&display=swap" rel="stylesheet"/>
+<style>
+  :root {
+    --bg: #0d0f14;
+    --surface: #161a23;
+    --card: #1e2433;
+    --border: #2a3147;
+    --accent: #4fffb0;
+    --accent2: #ff6b6b;
+    --accent3: #ffd166;
+    --text: #e8ecf4;
+    --muted: #6b7694;
+    --success: #4fffb0;
+    --radius: 10px;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Syne', sans-serif;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 36px 16px 60px;
+    background-image:
+      radial-gradient(ellipse 60% 40% at 80% 10%, rgba(79,255,176,0.06) 0%, transparent 60%),
+      radial-gradient(ellipse 40% 30% at 10% 90%, rgba(255,107,107,0.05) 0%, transparent 60%);
+  }
+
+  header {
+    text-align: center;
+    margin-bottom: 36px;
+    animation: fadeDown 0.6s ease both;
+  }
+
+  header .badge {
+    display: inline-block;
+    background: rgba(79,255,176,0.12);
+    border: 1px solid rgba(79,255,176,0.3);
+    color: var(--accent);
+    font-family: 'Space Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 2px;
+    padding: 4px 14px;
+    border-radius: 99px;
+    margin-bottom: 14px;
+    text-transform: uppercase;
+  }
+
+  header h1 {
+    font-size: clamp(26px, 5vw, 44px);
+    font-weight: 800;
+    line-height: 1.1;
+    letter-spacing: -0.5px;
+  }
+
+  header h1 span { color: var(--accent); }
+
+  header p {
+    color: var(--muted);
+    font-size: 15px;
+    margin-top: 10px;
+    max-width: 480px;
+    line-height: 1.6;
+  }
+
+  /* Workflow selector */
+  .selector-wrap {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 32px;
+    flex-wrap: wrap;
+    justify-content: center;
+    animation: fadeUp 0.5s 0.1s ease both;
+  }
+
+  .wf-btn {
+    background: var(--card);
+    border: 1px solid var(--border);
+    color: var(--muted);
+    font-family: 'Syne', sans-serif;
+    font-size: 13px;
+    font-weight: 600;
+    padding: 8px 18px;
+    border-radius: 99px;
+    cursor: pointer;
+    transition: all 0.2s;
+    letter-spacing: 0.3px;
+  }
+  .wf-btn:hover { border-color: var(--accent); color: var(--accent); }
+  .wf-btn.active {
+    background: rgba(79,255,176,0.12);
+    border-color: var(--accent);
+    color: var(--accent);
+  }
+
+  /* Main game area */
+  .game-wrap {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 24px;
+    width: 100%;
+    max-width: 860px;
+    animation: fadeUp 0.5s 0.2s ease both;
+  }
+
+  @media(max-width: 640px) {
+    .game-wrap { grid-template-columns: 1fr; }
+  }
+
+  .panel {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 20px;
+  }
+
+  .panel-title {
+    font-family: 'Space Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 16px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .panel-title::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--border);
+  }
+
+  /* Drop zone */
+  .dropzone {
+    min-height: 320px;
+    border: 2px dashed var(--border);
+    border-radius: var(--radius);
+    padding: 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    transition: border-color 0.2s, background 0.2s;
+    position: relative;
+  }
+
+  .dropzone.drag-over {
+    border-color: var(--accent);
+    background: rgba(79,255,176,0.03);
+  }
+
+  .dropzone-hint {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--border);
+    font-family: 'Space Mono', monospace;
+    font-size: 12px;
+    pointer-events: none;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .dropzone-hint svg { opacity: 0.3; }
+
+  /* Cards */
+  .step-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 12px 14px;
+    cursor: grab;
+    user-select: none;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    transition: transform 0.15s, border-color 0.15s, box-shadow 0.15s;
+    position: relative;
+  }
+
+  .step-card:active { cursor: grabbing; }
+
+  .step-card:hover {
+    border-color: rgba(79,255,176,0.35);
+    transform: translateY(-1px);
+    box-shadow: 0 6px 20px rgba(0,0,0,0.3);
+  }
+
+  .step-card.dragging {
+    opacity: 0.4;
+    transform: scale(0.96);
+  }
+
+  .step-card .num {
+    font-family: 'Space Mono', monospace;
+    font-size: 11px;
+    color: var(--accent);
+    background: rgba(79,255,176,0.1);
+    border: 1px solid rgba(79,255,176,0.2);
+    border-radius: 6px;
+    width: 28px;
+    height: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    font-weight: 700;
+  }
+
+  .step-card .label {
+    font-size: 13.5px;
+    font-weight: 600;
+    line-height: 1.4;
+    color: var(--text);
+  }
+
+  .step-card .drag-handle {
+    margin-left: auto;
+    color: var(--border);
+    flex-shrink: 0;
+    transition: color 0.15s;
+  }
+
+  .step-card:hover .drag-handle { color: var(--muted); }
+
+  /* Sequence slot indicators */
+  .slot-label {
+    font-family: 'Space Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 1px;
+    color: var(--muted);
+    text-transform: uppercase;
+    padding: 0 4px 2px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  /* Results */
+  .result-bar {
+    width: 100%;
+    max-width: 860px;
+    margin-top: 20px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 20px 24px;
+    display: none;
+    animation: fadeUp 0.4s ease both;
+  }
+
+  .result-bar.show { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
+
+  .result-bar.correct { border-color: var(--success); background: rgba(79,255,176,0.05); }
+  .result-bar.wrong   { border-color: var(--accent2); background: rgba(255,107,107,0.05); }
+
+  .result-icon { font-size: 28px; }
+  .result-text { flex: 1; }
+  .result-text strong { font-size: 16px; display: block; margin-bottom: 4px; }
+  .result-text span { color: var(--muted); font-size: 13px; }
+
+  .result-score {
+    font-family: 'Space Mono', monospace;
+    font-size: 22px;
+    font-weight: 700;
+    color: var(--accent);
+    background: rgba(79,255,176,0.1);
+    border: 1px solid rgba(79,255,176,0.2);
+    border-radius: 10px;
+    padding: 8px 18px;
+  }
+
+  .wrong .result-score { color: var(--accent2); background: rgba(255,107,107,0.1); border-color: rgba(255,107,107,0.2); }
+
+  /* Feedback per card */
+  .step-card.correct-slot { border-color: var(--success) !important; background: rgba(79,255,176,0.08); }
+  .step-card.wrong-slot   { border-color: var(--accent2) !important; background: rgba(255,107,107,0.08); }
+
+  /* Buttons */
+  .actions {
+    display: flex;
+    gap: 12px;
+    margin-top: 20px;
+    flex-wrap: wrap;
+    justify-content: center;
+    width: 100%;
+    max-width: 860px;
+  }
+
+  .btn {
+    font-family: 'Syne', sans-serif;
+    font-weight: 700;
+    font-size: 14px;
+    padding: 11px 26px;
+    border-radius: 99px;
+    border: none;
+    cursor: pointer;
+    transition: all 0.2s;
+    letter-spacing: 0.3px;
+  }
+
+  .btn-primary {
+    background: var(--accent);
+    color: #0d0f14;
+  }
+  .btn-primary:hover { filter: brightness(1.1); transform: translateY(-1px); }
+
+  .btn-ghost {
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--muted);
+  }
+  .btn-ghost:hover { border-color: var(--muted); color: var(--text); }
+
+  /* Progress */
+  .progress-row {
+    display: flex;
+    gap: 8px;
+    width: 100%;
+    max-width: 860px;
+    margin-bottom: 4px;
+    justify-content: flex-end;
+    animation: fadeUp 0.5s 0.15s ease both;
+  }
+
+  .progress-pill {
+    font-family: 'Space Mono', monospace;
+    font-size: 11px;
+    color: var(--muted);
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 99px;
+    padding: 4px 12px;
+  }
+
+  .progress-pill b { color: var(--accent); }
+
+  /* Ordinal badge in answer zone */
+  .ordinal-badge {
+    font-family: 'Space Mono', monospace;
+    font-size: 10px;
+    color: var(--muted);
+    white-space: nowrap;
+    padding-right: 2px;
+    flex-shrink: 0;
+    min-width: 52px;
+    text-align: right;
+  }
+
+  @keyframes fadeDown {
+    from { opacity: 0; transform: translateY(-20px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(16px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  /* Hint box */
+  .hint-box {
+    width: 100%;
+    max-width: 860px;
+    background: rgba(255,209,102,0.07);
+    border: 1px solid rgba(255,209,102,0.25);
+    border-radius: 10px;
+    padding: 12px 18px;
+    font-size: 13.5px;
+    color: var(--accent3);
+    margin-bottom: 8px;
+    animation: fadeUp 0.4s ease both;
+    display: none;
+  }
+  .hint-box.show { display: block; }
+
+  .confetti {
+    position: fixed;
+    top: 0; left: 0; width: 100%; height: 100%;
+    pointer-events: none;
+    z-index: 100;
+  }
+
+  .slot-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="badge">SENA · Data Analysis &amp; Software Dev</div>
+  <h1>Workflow <span>Sequencer</span></h1>
+  <p>Drag the scrambled steps from the left panel and drop them in the correct order on the right.</p>
+  <div style="margin-top:14px; font-family:'Space Mono',monospace; font-size:11px; letter-spacing:1.5px; color:#6b7694; text-transform:uppercase;">
+    Created by <span style="color:#ffd166;">Cesar Peña</span> · Bilingual Teacher
+  </div>
+</header>
+
+<div class="selector-wrap" id="wfSelector"></div>
+
+<div class="progress-row">
+  <div class="progress-pill">Workflow <b id="wfNum">1</b> of <b id="wfTotal">1</b></div>
+  <div class="progress-pill">Attempts: <b id="attemptCount">0</b></div>
+</div>
+
+<div class="hint-box" id="hintBox"></div>
+
+<div class="game-wrap">
+  <div class="panel">
+    <div class="panel-title">🔀 Scrambled Steps</div>
+    <div class="dropzone" id="sourceZone"></div>
+  </div>
+  <div class="panel">
+    <div class="panel-title">📋 Your Sequence</div>
+    <div class="dropzone" id="answerZone">
+      <div class="dropzone-hint" id="dropHint">
+        <svg width="32" height="32" fill="none" viewBox="0 0 24 24"><path d="M12 5v14M5 12l7 7 7-7" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        Drop steps here in order
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="actions">
+  <button class="btn btn-primary" onclick="checkAnswer()">✓ Check Answer</button>
+  <button class="btn btn-ghost" onclick="resetWorkflow()">↺ Shuffle Again</button>
+</div>
+
+<div class="result-bar" id="resultBar">
+  <div class="result-icon" id="resultIcon"></div>
+  <div class="result-text">
+    <strong id="resultTitle"></strong>
+    <span id="resultDetail"></span>
+  </div>
+  <div class="result-score" id="resultScore"></div>
+</div>
+
+<canvas class="confetti" id="confettiCanvas"></canvas>
+
+<script>
+const WORKFLOWS = [
+  {
+    id: 1,
+    name: "App Creation",
+    emoji: "🚀",
+    hint: null,
+    steps: [
+      "Gathering user requirements",
+      "Designing the system architecture and UI",
+      "Writing the actual code (Development)",
+      "Testing the software for bugs and errors",
+      "Deploying the application to the server",
+      "Maintaining the system and fixing new issues"
+    ]
+  },
+  {
+    id: 2,
+    name: "Bug-Fix",
+    emoji: "🛠️",
+    hint: "💡 Think about it: What is the <strong>1st</strong> step? What is the <strong>4th</strong>?",
+    steps: [
+      "Identify the error (Bug)",
+      "Write the fix (code)",
+      "Test the fix in a sandbox",
+      "Deploy the fix to the server",
+      "Close the support ticket"
+    ]
+  },
+  {
+    id: 3,
+    name: "Data Analysis",
+    emoji: "📊",
+    hint: "💡 You can't analyze what you haven't collected — and you can't present what you haven't analyzed!",
+    steps: [
+      "Collect the raw data",
+      "Clean the data (Remove errors)",
+      "Analyze the patterns",
+      "Visualize the data (Charts/Graphs)",
+      "Make a final decision/report"
+    ]
+  },
+  {
+    id: 4,
+    name: "User Login",
+    emoji: "🔐",
+    hint: "💡 Think about it: What must happen <em>before</em> you can grant access?",
+    steps: [
+      "User enters credentials (User/Pass)",
+      "Encrypt the password",
+      "Validate the data in the database",
+      "Grant access to the dashboard"
+    ]
+  }
+];
+
+const ORDINALS = ["1st","2nd","3rd","4th","5th","6th","7th","8th","9th","10th"];
+
+let currentWF = 0;
+let attempts = 0;
+let dragSrc = null;
+let dragSrcZone = null;
+
+function shuffle(arr) {
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  // Make sure it's not already in correct order
+  const correct = WORKFLOWS[currentWF].steps;
+  if (a.every((v,i) => v === correct[i])) return shuffle(arr);
+  return a;
+}
+
+function buildSelector() {
+  const sel = document.getElementById('wfSelector');
+  sel.innerHTML = '';
+  WORKFLOWS.forEach((wf, i) => {
+    const btn = document.createElement('button');
+    btn.className = 'wf-btn' + (i === currentWF ? ' active' : '');
+    btn.textContent = `${wf.emoji} ${wf.name}`;
+    btn.onclick = () => { currentWF = i; loadWorkflow(); buildSelector(); };
+    sel.appendChild(btn);
+  });
+  document.getElementById('wfNum').textContent = currentWF + 1;
+  document.getElementById('wfTotal').textContent = WORKFLOWS.length;
+
+  const hint = WORKFLOWS[currentWF].hint;
+  const hintBox = document.getElementById('hintBox');
+  if (hint) {
+    hintBox.innerHTML = hint;
+    hintBox.classList.add('show');
+  } else {
+    hintBox.classList.remove('show');
+  }
+}
+
+function makeCard(text, index, showNum) {
+  const card = document.createElement('div');
+  card.className = 'step-card';
+  card.draggable = true;
+  card.dataset.step = text;
+
+  if (showNum) {
+    const num = document.createElement('div');
+    num.className = 'num';
+    num.textContent = index + 1;
+    card.appendChild(num);
+  } else {
+    const ghost = document.createElement('div');
+    ghost.style.width = '28px';
+    ghost.style.flexShrink = '0';
+    card.appendChild(ghost);
+  }
+
+  const label = document.createElement('div');
+  label.className = 'label';
+  label.textContent = text;
+  card.appendChild(label);
+
+  const handle = document.createElement('div');
+  handle.className = 'drag-handle';
+  handle.innerHTML = `<svg width="16" height="16" fill="none" viewBox="0 0 24 24"><circle cx="9" cy="7" r="1.5" fill="currentColor"/><circle cx="15" cy="7" r="1.5" fill="currentColor"/><circle cx="9" cy="12" r="1.5" fill="currentColor"/><circle cx="15" cy="12" r="1.5" fill="currentColor"/><circle cx="9" cy="17" r="1.5" fill="currentColor"/><circle cx="15" cy="17" r="1.5" fill="currentColor"/></svg>`;
+  card.appendChild(handle);
+
+  card.addEventListener('dragstart', onDragStart);
+  card.addEventListener('dragend', onDragEnd);
+  return card;
+}
+
+function loadWorkflow() {
+  attempts = 0;
+  document.getElementById('attemptCount').textContent = 0;
+  clearResult();
+
+  const wf = WORKFLOWS[currentWF];
+  const scrambled = shuffle(wf.steps);
+
+  const src = document.getElementById('sourceZone');
+  const ans = document.getElementById('answerZone');
+  src.innerHTML = '';
+  ans.innerHTML = `<div class="dropzone-hint" id="dropHint"><svg width="32" height="32" fill="none" viewBox="0 0 24 24"><path d="M12 5v14M5 12l7 7 7-7" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>Drop steps here in order</div>`;
+
+  scrambled.forEach((step, i) => {
+    src.appendChild(makeCard(step, i, false));
+  });
+
+  setupDropzone(src);
+  setupDropzone(ans);
+}
+
+function setupDropzone(zone) {
+  zone.addEventListener('dragover', e => {
+    e.preventDefault();
+    zone.classList.add('drag-over');
+  });
+  zone.addEventListener('dragleave', e => {
+    if (!zone.contains(e.relatedTarget)) zone.classList.remove('drag-over');
+  });
+  zone.addEventListener('drop', e => {
+    e.preventDefault();
+    zone.classList.remove('drag-over');
+    if (!dragSrc) return;
+
+    // Remove the card from wherever it currently lives (unwrap slot-row if needed)
+    const oldRow = dragSrc.closest('.slot-row');
+    if (oldRow) oldRow.remove();
+    else if (dragSrc.parentNode) dragSrc.parentNode.removeChild(dragSrc);
+
+    // Remove hint if present
+    const hint = document.getElementById('dropHint');
+    if (hint) hint.remove();
+
+    if (zone.id === 'answerZone') {
+      // Get all current slot-rows (after removal above)
+      const existingRows = [...zone.querySelectorAll('.slot-row')];
+      // Find which row to insert before based on mouse Y
+      const insertBeforeRow = getInsertBeforeRow(existingRows, e.clientY);
+      // Wrap card in a new slot-row
+      const row = document.createElement('div');
+      row.className = 'slot-row';
+      const badge = document.createElement('div');
+      badge.className = 'ordinal-badge';
+      badge.textContent = '–';
+      row.appendChild(badge);
+      row.appendChild(dragSrc);
+
+      if (insertBeforeRow) zone.insertBefore(row, insertBeforeRow);
+      else zone.appendChild(row);
+
+      reindexSlots();
+    } else {
+      // Dropping back to source zone
+      const existingCards = [...zone.querySelectorAll('.step-card')];
+      const insertBeforeCard = getInsertBeforeRow(existingCards, e.clientY);
+      if (insertBeforeCard) zone.insertBefore(dragSrc, insertBeforeCard);
+      else zone.appendChild(dragSrc);
+    }
+
+    clearFeedback();
+    clearResult();
+  });
+}
+
+function getInsertBeforeRow(items, y) {
+  // items = array of elements (rows or cards). Returns the one to insert before, or null for end.
+  return items.reduce((closest, el) => {
+    const box = el.getBoundingClientRect();
+    const midpoint = box.top + box.height / 2;
+    const distance = y - midpoint;
+    // We want the first element whose midpoint is below the cursor
+    if (distance < 0 && distance > closest.distance) {
+      return { distance, el };
+    }
+    return closest;
+  }, { distance: Number.NEGATIVE_INFINITY, el: null }).el;
+}
+
+function reindexSlots() {
+  const ans = document.getElementById('answerZone');
+  ans.querySelectorAll('.slot-row').forEach((row, i) => {
+    const badge = row.querySelector('.ordinal-badge');
+    if (badge) badge.textContent = ORDINALS[i] || `${i+1}th`;
+  });
+}
+
+function onDragStart(e) {
+  dragSrc = this;
+  dragSrcZone = this.closest('.dropzone');
+  this.classList.add('dragging');
+  e.dataTransfer.effectAllowed = 'move';
+}
+
+function onDragEnd() {
+  this.classList.remove('dragging');
+  document.querySelectorAll('.dropzone').forEach(z => z.classList.remove('drag-over'));
+  dragSrc = null;
+  dragSrcZone = null;
+}
+
+function checkAnswer() {
+  const ans = document.getElementById('answerZone');
+  const cards = ans.querySelectorAll('.step-card');
+  const wf = WORKFLOWS[currentWF];
+
+  if (cards.length !== wf.steps.length) {
+    showResult(false, "Incomplete!", `Place all ${wf.steps.length} steps in the sequence panel first.`, null);
+    return;
+  }
+
+  attempts++;
+  document.getElementById('attemptCount').textContent = attempts;
+
+  let correct = 0;
+  cards.forEach((card, i) => {
+    card.classList.remove('correct-slot', 'wrong-slot');
+    if (card.dataset.step === wf.steps[i]) {
+      card.classList.add('correct-slot');
+      correct++;
+    } else {
+      card.classList.add('wrong-slot');
+    }
+  });
+
+  const score = Math.round((correct / wf.steps.length) * 100);
+  const allCorrect = correct === wf.steps.length;
+
+  if (allCorrect) {
+    launchConfetti();
+    showResult(true, "Perfect Sequence! 🎉", `You got all ${wf.steps.length} steps in the right order on attempt ${attempts}.`, `${score}%`);
+  } else {
+    showResult(false, `${correct} of ${wf.steps.length} correct`, `The highlighted steps are in the wrong position. Try adjusting them!`, `${score}%`);
+  }
+}
+
+function clearFeedback() {
+  document.querySelectorAll('.step-card').forEach(c => c.classList.remove('correct-slot','wrong-slot'));
+}
+
+function clearResult() {
+  const rb = document.getElementById('resultBar');
+  rb.className = 'result-bar';
+  rb.style.display = 'none';
+}
+
+function showResult(ok, title, detail, score) {
+  const rb = document.getElementById('resultBar');
+  rb.className = 'result-bar show ' + (ok ? 'correct' : 'wrong');
+  rb.style.display = 'flex';
+  document.getElementById('resultIcon').textContent = ok ? '✅' : '❌';
+  document.getElementById('resultTitle').textContent = title;
+  document.getElementById('resultDetail').textContent = detail;
+  const sc = document.getElementById('resultScore');
+  sc.textContent = score || '';
+  sc.style.display = score ? '' : 'none';
+}
+
+function resetWorkflow() {
+  loadWorkflow();
+  buildSelector();
+}
+
+// ── Confetti ──────────────────────────────────────────────────────────────
+function launchConfetti() {
+  const canvas = document.getElementById('confettiCanvas');
+  const ctx = canvas.getContext('2d');
+  canvas.width = window.innerWidth;
+  canvas.height = window.innerHeight;
+
+  const colors = ['#4fffb0','#ff6b6b','#ffd166','#6bceff','#ff9ff3'];
+  const particles = Array.from({length: 120}, () => ({
+    x: Math.random() * canvas.width,
+    y: -20,
+    r: Math.random() * 6 + 3,
+    color: colors[Math.floor(Math.random()*colors.length)],
+    vx: (Math.random()-0.5)*4,
+    vy: Math.random()*4+2,
+    rot: Math.random()*360,
+    rotV: (Math.random()-0.5)*8
+  }));
+
+  let frame = 0;
+  function animate() {
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+    particles.forEach(p => {
+      p.x += p.vx; p.y += p.vy; p.rot += p.rotV;
+      ctx.save();
+      ctx.translate(p.x, p.y);
+      ctx.rotate(p.rot * Math.PI/180);
+      ctx.fillStyle = p.color;
+      ctx.fillRect(-p.r/2, -p.r/2, p.r, p.r*1.5);
+      ctx.restore();
+    });
+    frame++;
+    if (frame < 120) requestAnimationFrame(animate);
+    else ctx.clearRect(0,0,canvas.width,canvas.height);
+  }
+  animate();
+}
+
+// ── Init ──────────────────────────────────────────────────────────────────
+buildSelector();
+loadWorkflow();
+</script>
+</body>
+</html>
